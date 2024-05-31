@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simultaneous JSON Update</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f8ff;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            color: #4682b4;
+            text-align: center;
+        }
+        form {
+            background-color: #fff;
+            border: 2px solid #4682b4;
+            border-radius: 10px;
+            padding: 20px;
+            width: 300px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            color: #4682b4;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="number"] {
+            width: calc(100% - 10px);
+            padding: 5px;
+            margin: 10px 0;
+            border: 1px solid #4682b4;
+            border-radius: 5px;
+        }
+        button {
+            background-color: #4682b4;
+            color: #fff;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #5a9bd6;
+        }
+    </style>
+</head>
+<body>
+    <h1>JSON Data</h1>
+    <form id="dataForm">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name"><br><br>
+        <label for="age">Age:</label>
+        <input type="number" id="age" name="age"><br><br>
+        <button type="submit">Submit</button>
+    </form>
+
+    <script>
+        const clientId = prompt("Enter your client ID:");
+        const ws = new WebSocket(`ws://localhost:3000?clientId=${clientId}`);
+
+        ws.onopen = () => {
+            console.log('Connected to the server');
+        };
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            document.getElementById('name').value = data.name;
+            document.getElementById('age').value = data.age;
+        };
+
+        document.getElementById('dataForm').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const name = document.getElementById('name').value;
+            const age = document.getElementById('age').value;
+            const data = { name, age };
+            ws.send(JSON.stringify(data));
+        });
+    </script>
+</body>
+</html>
