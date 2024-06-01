@@ -5,15 +5,12 @@ const path = require('path');
 
 const app = express();
 
-
 app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', "font-src 'self' data:; default-src 'self'");
   next();
 });
 
-
 app.use(express.static('public'));
-
 
 const port = 3000;
 const server = app.listen(port, () => {
@@ -21,6 +18,9 @@ const server = app.listen(port, () => {
 });
 
 const wss = new WebSocket.Server({ server });
+
+// Store WebSocket connections for each clientId
+const clients = {};
 
 function readJsonFromFile(clientId) {
   const filePath = path.join(__dirname, `data_${clientId}.json`);
@@ -37,6 +37,15 @@ function writeJsonToFile(clientId, data) {
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
+function broadcastUpdate(clientId, data) {
+  if (clients[clientId]) {
+    clients[clientId].forEach(ws => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(data));
+      }
+    });
+  }
+}
 
 wss.on('connection', (ws, req) => {
   const params = new URLSearchParams(req.url.split('?')[1]);
@@ -48,17 +57,25 @@ wss.on('connection', (ws, req) => {
 
   console.log(`Client ${clientId} connected`);
 
-  
-  ws.send(JSON.stringify(readJsonFromFile(clientId)));
+  if (!clients[clientId]) {
+    clients[clientId] = [];
+  }
+  clients[clientId].push(ws);
 
+  ws.send(JSON.stringify(readJsonFromFile(clientId)));
 
   ws.on('message', (message) => {
     console.log(`Received from ${clientId}: ${message}`);
     const data = JSON.parse(message);
     writeJsonToFile(clientId, data);
+    broadcastUpdate(clientId, data);
   });
 
   ws.on('close', () => {
     console.log(`Client ${clientId} disconnected`);
+    clients[clientId] = clients[clientId].filter(clientWs => clientWs !== ws);
+    if (clients[clientId].length === 0) {
+      delete clients[clientId];
+    }
   });
 });
